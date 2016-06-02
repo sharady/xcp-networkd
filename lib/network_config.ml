@@ -25,57 +25,6 @@ exception Write_error
 
 let config_file_path = "/var/lib/xcp/networkd.db"
 
-let read_management_conf () =
-	try
-		let management_conf = Unixext.string_of_file ("/etc/firstboot.d/data/management.conf") in
-		let args = String.split '\n' (String.rtrim management_conf) in
-		let args = List.map (fun s -> match (String.split '=' s) with k :: [v] -> k, String.strip ((=) '\'') v | _ -> "", "") args in
-		debug "Firstboot file management.conf has: %s" (String.concat "; " (List.map (fun (k, v) -> k ^ "=" ^ v) args));
-		let device = List.assoc "LABEL" args in
-		Inventory.reread_inventory ();
-		let bridge_name = Inventory.lookup Inventory._management_interface in
-		debug "Management bridge in inventory file: %s" bridge_name;
-		let mac = Network_utils.Ip.get_mac device in
-		let ipv4_conf, ipv4_gateway, dns =
-			match List.assoc "MODE" args with
-			| "static" ->
-				let ip = List.assoc "IP" args |> Unix.inet_addr_of_string in
-				let prefixlen = List.assoc "NETMASK" args |> netmask_to_prefixlen in
-				let gateway =
-					if List.mem_assoc "GATEWAY" args then
-						Some (List.assoc "GATEWAY" args |> Unix.inet_addr_of_string)
-					else None
-				in
-				let nameservers =
-					if List.mem_assoc "DNS" args && List.assoc "DNS" args <> "" then
-						List.map Unix.inet_addr_of_string (String.split ',' (List.assoc "DNS" args))
-					else []
-				in
-				let domains =
-					if List.mem_assoc "DOMAIN" args && List.assoc "DOMAIN" args <> "" then
-						String.split ' ' (List.assoc "DOMAIN" args)
-					else []
-				in
-				let dns = nameservers, domains in
-				Static4 [ip, prefixlen], gateway, dns
-			| "dhcp" | _ ->
-				DHCP4, None, ([], [])
-		in
-		let phy_interface = {default_interface with persistent_i = true} in
-		let bridge_interface = {default_interface with ipv4_conf; ipv4_gateway; persistent_i = true} in
-		let bridge = {default_bridge with
-			bridge_mac = Some mac;
-			ports = [device, {default_port with interfaces = [device]}];
-			persistent_b = true
-		} in
-		{interface_config = [device, phy_interface; bridge_name, bridge_interface];
-			bridge_config = [bridge_name, bridge];
-			gateway_interface = Some bridge_name; dns_interface = Some bridge_name}
-	with e ->
-		error "Error while trying to read firstboot data: %s\n%s"
-			(Printexc.to_string e) (Printexc.get_backtrace ());
-		raise Read_error
-
 let write_config config =
 	try
 		let config_json = config |> rpc_of_config_t |> Jsonrpc.to_string in

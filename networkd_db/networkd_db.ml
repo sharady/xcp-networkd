@@ -34,7 +34,10 @@ let _ =
 			if List.mem_assoc !bridge config.bridge_config then begin
 				let bridge_config = List.assoc !bridge config.bridge_config in
 				let ifaces = List.flatten (List.map (fun (_, port) -> port.interfaces) bridge_config.ports) in
-				Printf.printf "interfaces=%s\n" (String.concat "," ifaces)
+				begin match bridge_config.vlan with
+					| None -> Printf.printf "interfaces=%s\n" (String.concat "," ifaces)
+					| Some (parent, id) -> Printf.printf "interfaces=%s vlan=%d parent=%s\n" (String.concat "," ifaces) id parent
+				end
 			end else begin
 				rc := 1;
 				Printf.fprintf stderr "Could not find bridge %s\n" !bridge;

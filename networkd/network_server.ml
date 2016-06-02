@@ -51,13 +51,6 @@ let read_config () =
 		 * management interface using the old scripts. *)
 		if (try Unix.access (Filename.concat "/var/lib/xcp" "network.dbcache") [Unix.F_OK]; true with _ -> false) then
 			legacy_management_interface_start ()
-		else
-			(* Try to get the initial network setup from the first-boot data written by the host installer. *)
-			try
-				config := Network_config.read_management_conf ();
-				debug "Read configuration from management.conf file."
-			with Network_config.Read_error ->
-				debug "Could not interpret the configuration in management.conf"
 
 let on_shutdown signal =
 	let dbg = "shutdown" in
@@ -73,9 +66,6 @@ let reopen_logs _ () = true
 
 let clear_state _ () =
 	config := empty_config
-
-let reset_state _ () =
-	config := Network_config.read_management_conf ()
 
 let set_gateway_interface _ dbg ~name =
 	debug "Setting gateway interface to %s" name;
