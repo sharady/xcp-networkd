@@ -79,6 +79,10 @@ let reset_state _ () =
 	config := Network_config.read_management_conf ()
 
 let set_gateway_interface _ dbg ~name =
+	begin match !config.gateway_interface with
+	| None -> ()
+	| Some iface -> if name <> iface then Dhclient.write_conf_file iface [`set_dns]
+	end;
 	debug "Setting gateway interface to %s" name;
 	config := {!config with gateway_interface = Some name}
 
