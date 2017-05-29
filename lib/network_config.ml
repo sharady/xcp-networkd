@@ -78,11 +78,9 @@ let read_management_conf () =
 				} in
 			if bridge_name = "" then
 				[], []
-			else begin
-				match vlan with
-				| None ->
-					[device, phy_interface; bridge_name, bridge_interface],
-					[bridge_name, primary_bridge_conf]
+			else if bridge_name = "xentemp" then
+				begin match vlan with
+				| None -> [], []
 				| Some vlan ->
 					let parent = bridge_naming_convention device in
 					let secondary_bridge_conf = {default_bridge with
@@ -93,7 +91,10 @@ let read_management_conf () =
 					let parent_bridge_interface = {default_interface with persistent_i = true} in
 					[device, phy_interface; parent, parent_bridge_interface; bridge_name, bridge_interface],
 					[parent, primary_bridge_conf; bridge_name, secondary_bridge_conf]
-			end
+				end
+			else
+				[device, phy_interface; bridge_name, bridge_interface],
+				[bridge_name, primary_bridge_conf]
 		in
 		{interface_config = interface_config; bridge_config = bridge_config;
 			gateway_interface = Some bridge_name; dns_interface = Some bridge_name}
